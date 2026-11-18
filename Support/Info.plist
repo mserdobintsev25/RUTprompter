@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>RUTprompter</string>
+    <key>CFBundleDisplayName</key>
+    <string>RUTprompter</string>
+    <key>CFBundleIdentifier</key>
+    <string>local.rutprompter.app</string>
+    <key>CFBundleExecutable</key>
+    <string>RUTprompter</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>ru</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>Суфлёр, который следует за голосом</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>RUTprompter слушает, как вы читаете скрипт, чтобы прокрутка шла в вашем темпе. Звук обрабатывается только на этом Mac.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Распознавание речи выполняется на устройстве и нужно только для того, чтобы понять, какое место скрипта вы сейчас читаете. Голосовых команд нет.</string>
+</dict>
+</plist>
