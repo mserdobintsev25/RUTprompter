@@ -88,6 +88,8 @@ final class SpeechInput {
             engine.stop()
         }
         engine = nil
+        fileTimer?.cancel()
+        fileTimer = nil
         onStatus?(.idle)
     }
 
@@ -97,6 +99,12 @@ final class SpeechInput {
     /// после того, как перемотка утихла.
     func resetRecognition() {
         guard isRunning else { return }
+        // Сразу отбрасываем результаты старых задач: иначе хвост фразы,
+        // пришедший до перезапуска, вернул бы текст на прежнее место.
+        lock.lock()
+        let current = channels
+        lock.unlock()
+        for ch in current { ch.generation += 1 }
         pendingReset?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.isRunning else { return }
@@ -132,6 +140,8 @@ final class SpeechInput {
             default: done("Нет доступа к распознаванию речи (Настройки → Конфиденциальность → Распознавание речи)")
             }
         }
+        // В тестовом режиме с файлом микрофон не нужен.
+        if let f = UserDefaults.standard.string(forKey: "rut.testAudioFile"), !f.isEmpty { speech(); return }
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .authorized: speech()
         case .notDetermined:
@@ -157,6 +167,14 @@ final class SpeechInput {
         }
         guard !list.isEmpty else {
             fail(problems.first ?? "Распознавание недоступно")
+            return
+        }
+
+        // Отладочный режим без звука: вместо микрофона подаём аудиофайл
+        // в реальном времени (`defaults write local.rutprompter.app
+        // rut.testAudioFile /путь/файл.aiff`). Ничего не воспроизводится.
+        if let path = UserDefaults.standard.string(forKey: "rut.testAudioFile"), !path.isEmpty {
+            startFileFeed(path: path, channels: list)
             return
         }
 
@@ -207,6 +225,7 @@ final class SpeechInput {
     }
 
     private func beginTask(_ ch: Channel) {
+        Self.debugLog("beginTask ch=\(ch.index)")
         ch.generation += 1
         let gen = ch.generation
         ch.request?.endAudio()
@@ -223,6 +242,9 @@ final class SpeechInput {
 
         ch.task = ch.recognizer.recognitionTask(with: req) { [weak self, weak ch] result, error in
             guard let self, let ch else { return }
+            if Self.debugEnabled {
+                Self.debugLog("ch=\(ch.index) gen=\(gen)/\(ch.generation) final=\(result?.isFinal == true) result=«\(result?.bestTranscription.formattedString ?? "-")» error=\(error.map { "\(($0 as NSError).domain) \(($0 as NSError).code) \($0.localizedDescription)" } ?? "-")")
+            }
             DispatchQueue.main.async {
                 guard self.isRunning, ch.generation == gen else { return }
                 if let result {
@@ -238,17 +260,110 @@ final class SpeechInput {
                 }
                 if let error {
                     let lived = Date().timeIntervalSince(ch.startedAt)
-                    ch.quickFailures = lived < 2 ? ch.quickFailures + 1 : 0
-                    if ch.quickFailures >= 4 {
-                        self.fail("Распознавание остановилось: \(error.localizedDescription)")
-                        return
+                    var delay = lived < 0.5 ? 0.5 : 0.05
+                    if Self.isBenign(error) {
+                        // Тишина («No speech detected») и отмена — норма:
+                        // перед дублем все молчат. Просто слушаем дальше.
+                        ch.quickFailures = 0
+                    } else {
+                        ch.quickFailures = lived < 2 ? ch.quickFailures + 1 : 0
+                        if ch.quickFailures >= 6 {
+                            self.dropChannel(ch, reason: error.localizedDescription)
+                            return
+                        }
+                        delay = min(0.3 * pow(2, Double(ch.quickFailures)), 3)
                     }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + (lived < 2 ? 0.6 : 0.05)) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                         guard self.isRunning, ch.generation == gen else { return }
                         self.beginTask(ch)
                     }
                 }
             }
+        }
+    }
+
+    // MARK: Тестовая подача файла
+
+    private var fileTimer: DispatchSourceTimer?
+
+    static var debugEnabled: Bool { UserDefaults.standard.bool(forKey: "rut.speechDebug") }
+
+    /// Отладочный журнал в ~/Library/Application Support/RUTprompter/debug.log
+    /// (только при включённом rut.speechDebug).
+    static func debugLog(_ text: String) {
+        guard debugEnabled else { return }
+        let url = ScriptStorage.url.deletingLastPathComponent().appendingPathComponent("debug.log")
+        let line = String(format: "%.2f ", CACurrentMediaTime()) + text + "\n"
+        debugQueue.async {
+            if let h = try? FileHandle(forWritingTo: url) {
+                h.seekToEndOfFile(); h.write(line.data(using: .utf8)!); try? h.close()
+            } else {
+                try? line.write(to: url, atomically: true, encoding: .utf8)
+            }
+        }
+    }
+    private static let debugQueue = DispatchQueue(label: "rut.debuglog")
+
+    private func startFileFeed(path: String, channels list: [Channel]) {
+        guard let file = try? AVAudioFile(forReading: URL(fileURLWithPath: path)) else {
+            fail("Тестовый аудиофайл не открылся: \(path)")
+            return
+        }
+        let fmt = file.processingFormat
+        guard let mono = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: fmt.sampleRate,
+                                       channels: 1, interleaved: false) else { fail("Формат файла"); return }
+        let chunk = AVAudioFrameCount(fmt.sampleRate / 10)  // 100 мс
+        lock.lock(); channels = list; lock.unlock()
+        for ch in list { beginTask(ch) }
+        onStatus?(.listening(locales: list.map { $0.recognizer.locale.identifier } + ["тест: файл"]))
+        Self.debugLog("file feed start \(path) \(Double(file.length) / fmt.sampleRate) s")
+
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "rut.filefeed"))
+        timer.schedule(deadline: .now(), repeating: .milliseconds(100))
+        timer.setEventHandler { [weak self] in
+            guard let self, let buf = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: chunk) else { return }
+            if file.framePosition < file.length {
+                try? file.read(into: buf, frameCount: chunk)
+            } else {
+                // Файл кончился — дальше «тишина», как в комнате.
+                buf.frameLength = chunk
+                if let d = buf.floatChannelData { for c in 0..<Int(fmt.channelCount) { memset(d[c], 0, Int(chunk) * 4) } }
+            }
+            guard let out = Self.makeMono(buf, format: mono, channel: 0) else { return }
+            self.reportLevel(out)
+            self.lock.lock()
+            let l = self.channels
+            self.lock.unlock()
+            for ch in l { ch.request?.append(out) }
+        }
+        fileTimer = timer
+        timer.resume()
+    }
+
+    /// Ошибки, после которых распознавание просто перезапускается.
+    static func isBenign(_ error: Error) -> Bool {
+        let ns = error as NSError
+        if ns.domain == "kAFAssistantErrorDomain", [203, 209, 216, 1101, 1107, 1110].contains(ns.code) { return true }
+        if ns.domain == "kLSRErrorDomain", [301].contains(ns.code) { return true }
+        let text = ns.localizedDescription.lowercased()
+        return text.contains("no speech") || text.contains("cancel")
+    }
+
+    /// Отключить один сломанный язык; если не осталось ни одного —
+    /// сообщить о недоступности (движок перейдёт в запасной режим).
+    private func dropChannel(_ ch: Channel, reason: String) {
+        ch.generation += 1
+        ch.request?.endAudio()
+        ch.task?.cancel()
+        lock.lock()
+        channels.removeAll { $0 === ch }
+        let left = channels
+        lock.unlock()
+        NSLog("RUTprompter speech: модель %@ отключена: %@", ch.recognizer.locale.identifier, reason)
+        if left.isEmpty {
+            fail("Распознавание остановилось: \(reason)")
+        } else {
+            onStatus?(.listening(locales: left.map { $0.recognizer.locale.identifier }))
         }
     }
 

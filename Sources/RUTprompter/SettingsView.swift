@@ -202,16 +202,10 @@ private struct SpeechTab: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Распознавание (только на устройстве)") {
-                Picker("Основной язык", selection: $settings.pacing.primaryLocale) {
+                Picker("Язык речи", selection: $settings.pacing.primaryLocale) {
                     ForEach(Self.locales, id: \.0) { Text($0.1).tag($0.0) }
                 }
-                Picker("Второй язык параллельно", selection: Binding(
-                    get: { settings.pacing.secondaryLocale ?? "" },
-                    set: { settings.pacing.secondaryLocale = $0.isEmpty ? nil : $0 })) {
-                    Text("Нет").tag("")
-                    ForEach(Self.locales, id: \.0) { Text($0.1).tag($0.0) }
-                }
-                Text("Вторая модель помогает с иностранными словами и терминами. Если язык не установлен для офлайн-диктовки, он будет пропущен (Системные настройки → Клавиатура → Диктовка).")
+                Text("Иностранные слова и термины из скрипта распознаются через подсказки модели и сравнение по звучанию («пармезан» = parmesan). Язык должен быть установлен для офлайн-диктовки (Системные настройки → Клавиатура → Диктовка).")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Микрофон читающего") {

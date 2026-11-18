@@ -167,8 +167,9 @@ struct PacingSettings: Codable, Equatable {
     /// Темп «по умолчанию» для ETA, пока реальный ещё не измерен.
     var baseWPM: Double = 130
     var primaryLocale = "ru-RU"
-    /// Вторая модель параллельно (для иностранных слов). nil — выкл.
-    var secondaryLocale: String? = "en-US"
+    /// Не используется: две on-device модели одновременно мешают друг
+    /// другу. Поле оставлено для совместимости сохранённых настроек.
+    var secondaryLocale: String? = nil
     var inputDeviceUID: String?
     /// 0 — смешать все каналы, 1...n — взять только этот канал
     /// (когда у читающего свой микрофон на многоканальной карте).

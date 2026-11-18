@@ -93,6 +93,8 @@ public enum TextNormalizer {
     /// Вес слова для сопоставления: служебные короткие слова почти ничего
     /// не доказывают, длинные — доказывают.
     public static func weight(of key: String) -> Double {
+        // Числа («десять», «3») — различимые слова, хоть и короткие.
+        if !key.isEmpty, key.allSatisfy(\.isNumber) { return 1.0 }
         switch key.count {
         case 0: return 0
         case 1...2: return 0.35

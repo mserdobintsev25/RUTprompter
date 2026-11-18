@@ -203,3 +203,11 @@ diarization. Реалистичные варианты, которые стои�
   покрывать проверками в `Sources/CoreChecks/main.swift`.
 - Позиция везде измеряется в словах (`Double`), пиксели считает только
   `PrompterCanvasView`.
+- Голос проверяется БЕЗ звука: начитка в файл `say -v Milena -o take.aiff "…"`
+  (`[[slnc 4000]]` — пауза), затем
+  `defaults write local.rutprompter.app rut.testAudioFile /путь/take.aiff`
+  и `rut.speechDebug -bool true` — журнал в
+  `~/Library/Application Support/RUTprompter/debug.log`. После теста оба
+  ключа убрать. Звук на динамики не выводить: автор работает в коворкинге.
+- Две on-device модели распознавания в одном процессе обрывают друг друга —
+  используется только одна.

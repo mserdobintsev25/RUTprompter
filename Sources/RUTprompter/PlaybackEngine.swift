@@ -80,6 +80,8 @@ final class PlaybackEngine: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var atEndSince: Double?
     private var activity: NSObjectProtocol?
+    private var heldTarget: Double = 0
+    private var lastDebugSecond = 0
 
     // Дубль
     private var takeActive = false
@@ -156,6 +158,7 @@ final class PlaybackEngine: ObservableObject {
         if !takeActive { beginTake() }
         anchor = follower.position
         target = follower.position
+        heldTarget = follower.position
         anchorTime = CACurrentMediaTime()
         if settings.pacing.mode == .voice { startSpeech() }
     }
@@ -187,6 +190,7 @@ final class PlaybackEngine: ObservableObject {
         let p = min(max(position, 0), Double(document.wordCount))
         target = p
         anchor = p
+        heldTarget = p
         anchorTime = CACurrentMediaTime()
         if !animated { follower.snap(to: p) }
         lastHeardMatch = nil
@@ -201,6 +205,8 @@ final class PlaybackEngine: ObservableObject {
         follower.snap(to: p)
         target = p
         anchor = p
+        heldTarget = p
+        lastHeardMatch = nil
         anchorTime = CACurrentMediaTime()
         speech.resetRecognition()
         redraw()
@@ -243,14 +249,16 @@ final class PlaybackEngine: ObservableObject {
             voiceStatus = .off
         }
         anchor = follower.position
+        heldTarget = follower.position
         anchorTime = CACurrentMediaTime()
     }
 
     // MARK: Речь
 
     private func startSpeech() {
-        var locales = [settings.pacing.primaryLocale]
-        if let s = settings.pacing.secondaryLocale, s != settings.pacing.primaryLocale { locales.append(s) }
+        let locales = [settings.pacing.primaryLocale]
+        // Только одна модель: две задачи on-device распознавания в одном
+        // процессе обрывают друг друга («No speech detected» через 0.05 с).
         speech.start(.init(locales: locales, deviceUID: settings.pacing.inputDeviceUID,
                            channel: settings.pacing.inputChannel, hints: document.contextualHints()))
     }
@@ -275,7 +283,12 @@ final class PlaybackEngine: ObservableObject {
         heardText = heard
         guard isPlaying, effectiveMode == .voice else { return }
         let pointer = Int(anchor.rounded())
-        guard let m = matcher.match(tail: keys, pointer: pointer, words: document.words) else { return }
+        let found = matcher.match(tail: keys, pointer: pointer, words: document.words)
+        if SpeechInput.debugEnabled {
+            SpeechInput.debugLog("heard «\(heard)» anchor=\(anchor) shown=\(String(format: "%.2f", follower.position)) → " +
+                  (found.map { "\($0.nextWord) (\($0.matchedWords) сл., \(String(format: "%.2f", $0.score)))" } ?? "нет"))
+        }
+        guard let m = found else { return }
         let now = CACurrentMediaTime()
         let p = Double(m.nextWord)
         lastHeardMatch = now
@@ -294,11 +307,14 @@ final class PlaybackEngine: ObservableObject {
         } else if p < anchor - 2.5 {
             // Уверенный откат назад: перечитывают фразу.
             anchor = p
+            heldTarget = p
             anchorTime = now
         }
     }
 
-    private let maxLead = 2.0
+    // Запас на задержку распознавания (~0.4 с ≈ 1 слово). Больше — и при
+    // паузе текст встаёт заметно впереди читающего.
+    private let maxLead = 1.2
 
     var effectiveWPM: Double {
         if effectiveMode == .fixed { return settings.pacing.fixedWPM }
@@ -328,9 +344,19 @@ final class PlaybackEngine: ObservableObject {
                 // последнего услышанного места: если читающий замолчал
                 // или говорит собеседник — прокрутка мягко встаёт.
                 let wps = effectiveWPM / 60
-                let lead = min(wps * (now - anchorTime), maxLead)
-                target = min(anchor + max(lead, 0), n)
-                targetVelocity = lead < maxLead && target < n ? wps : 0
+                // Доезжаем вперёд только пока речь недавно слышали: до
+                // первых слов и после долгой паузы текст стоит на месте.
+                let speaking = lastHeardMatch.map { now - $0 < 3 } ?? false
+                if speaking {
+                    let lead = min(max(wps * (now - anchorTime), 0), maxLead)
+                    target = min(anchor + lead, n)
+                    targetVelocity = lead < maxLead && target < n ? wps : 0
+                    heldTarget = target
+                } else {
+                    // Замолчали — текст замирает там, где был (без отката).
+                    target = min(max(anchor, heldTarget), n)
+                    targetVelocity = 0
+                }
             }
             takeElapsed += dt
             if takeElapsed - lastSampleAt >= 0.25 {
@@ -350,6 +376,11 @@ final class PlaybackEngine: ObservableObject {
         let before = follower.position
         follower.step(target: target, targetVelocity: targetVelocity, dt: dt)
         follower.position = min(max(follower.position, 0), max(n, 0))
+        // Пружина подходит к цели асимптотически (36.9999 вместо 37) —
+        // доводим, чтобы текущее слово и раздел определялись точно.
+        if targetVelocity == 0, abs(follower.position - target) < 0.002, abs(follower.velocity) < 0.01 {
+            follower.snap(to: target)
+        }
         if abs(follower.position - before) > 1e-5 { redraw() }
 
         if now - lastStatsUpdate > 0.2 { refreshStats(now: now) }
@@ -385,6 +416,10 @@ final class PlaybackEngine: ObservableObject {
         if let h = lastHeardMatch {
             s.secondsSinceHeard = now - h
             s.isTracking = now - h < 2.5
+        }
+        if SpeechInput.debugEnabled, isPlaying, Int(now) != lastDebugSecond {
+            lastDebugSecond = Int(now)
+            SpeechInput.debugLog(String(format: "tick pos=%.2f target=%.2f anchor=%.1f wpm=%.0f", pos, target, anchor, s.effectiveWPM))
         }
         if s != stats { stats = s }
         for c in canvases.allObjects { c.statsDidChange(s) }

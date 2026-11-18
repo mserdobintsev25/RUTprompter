@@ -33,7 +33,18 @@ public struct TakeRecord: Identifiable, Equatable {
         self.targetDuration = targetDuration; self.samples = samples
     }
 
-    public var wordsRead: Double { max(0, endPosition - startPosition) }
+    /// Реально прочитанные слова: сумма продвижений между замерами без
+    /// скачков (ручная перемотка вперёд/назад во время дубля не считается).
+    public var wordsRead: Double {
+        guard samples.count >= 2 else { return max(0, endPosition - startPosition) }
+        var total = 0.0
+        for k in 1..<samples.count {
+            let d = samples[k].position - samples[k - 1].position
+            let dt = max(samples[k].t - samples[k - 1].t, 0.01)
+            if d > 0, d / dt <= 8 { total += d }   // > 8 слов/с — это перемотка
+        }
+        return total
+    }
     public var averageWPM: Double? { duration > 3 && wordsRead > 3 ? wordsRead / duration * 60 : nil }
     public var completed: Bool { endPosition >= Double(totalWords) - 0.5 }
 }
@@ -64,8 +75,12 @@ public struct TakeAnalysis {
 
     public init(take: TakeRecord, binSize: Int = 15, threshold: Double = 0.25) {
         var bins: [Bin] = []
-        let s = take.samples
-        let start = Int(take.startPosition.rounded(.down))
+        // После перемотки назад анализируем последнее непрерывное прочтение.
+        var s = take.samples
+        if let cut = s.indices.dropFirst().last(where: { s[$0].position < s[$0 - 1].position - 3 }) {
+            s = Array(s[cut...])
+        }
+        let start = Int((s.first?.position ?? take.startPosition).rounded(.down))
         let end = Int(take.endPosition.rounded(.down))
         if s.count >= 2, end > start {
             var first = start

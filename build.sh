@@ -47,10 +47,13 @@ echo "✓ Готово: $APP"
 case "${1:-}" in
   run)
     pkill -x RUTprompter 2>/dev/null || true
+    # Ждём, пока старая копия закроется, иначе open вернёт ошибку -600.
+    for _ in 1 2 3 4 5 6 7 8 9 10; do pgrep -x RUTprompter >/dev/null || break; sleep 0.3; done; sleep 0.7
     open "$APP"
     ;;
   install)
     pkill -x RUTprompter 2>/dev/null || true
+    for _ in 1 2 3 4 5 6 7 8 9 10; do pgrep -x RUTprompter >/dev/null || break; sleep 0.3; done; sleep 0.7
     rm -rf /Applications/RUTprompter.app
     cp -R "$APP" /Applications/
     open /Applications/RUTprompter.app
