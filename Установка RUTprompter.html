@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RUTprompter — установка</title>
+<style>
+:root{
+  --bg:#EDF1F8;--card:#FFFFFF;--ink:#0B1B33;--ink2:#566783;--line:rgba(10,40,90,.10);
+  --blue:#005CC9;--electric:#0066FF;--chip:#E3EDFB;--code:#F0F4FB;--navy:#123A8C;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#091325;--card:#101D38;--ink:#F1F6FF;--ink2:#9DAECB;--line:rgba(255,255,255,.10);
+  --blue:#82BAFF;--electric:#2B7BFF;--chip:#182A52;--code:#16264A;--navy:#7FE3FF;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif}
+.wrap{max-width:780px;margin:0 auto;padding:48px 20px 90px}
+header{display:flex;gap:20px;align-items:center;margin-bottom:26px}
+header img{width:84px;height:84px;border-radius:30%;box-shadow:0 10px 24px rgba(0,102,255,.28)}
+h1{font:800 34px/1.1 -apple-system,"SF Pro Display",sans-serif;letter-spacing:-.02em;margin:0 0 6px}
+.lead{margin:0;color:var(--ink2)}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}
+.pill{display:inline-block;padding:6px 14px;border-radius:99px;font-weight:700;font-size:13px;color:#fff;background:var(--electric)}
+.pill.line{background:transparent;color:var(--blue);box-shadow:inset 0 0 0 2px var(--electric)}
+nav{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 24px}
+nav a{font-size:13px;color:var(--blue);text-decoration:none;padding:5px 13px;border-radius:99px;background:var(--card);border:1px solid var(--line)}
+nav a:focus-visible{outline:3px solid var(--electric);outline-offset:2px}
+section{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px 26px;margin:0 0 16px}
+h2{font-size:20px;margin:0 0 12px;display:flex;align-items:center;gap:12px;letter-spacing:-.01em}
+h2 .n{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:10px;color:#fff;font-size:15px;background:var(--electric);transform:skewX(-8deg)}
+h2 .n b{transform:skewX(8deg);font-weight:800}
+p{margin:8px 0}ol,ul{margin:8px 0;padding-left:22px}li{margin:6px 0}
+code,kbd{font:13px/1.5 ui-monospace,Menlo,monospace;background:var(--code);padding:1px 7px;border-radius:6px}
+kbd{border:1px solid var(--line);border-bottom-width:2px}
+.note{margin:12px 0 0;padding:10px 14px;border-radius:12px;background:var(--chip);color:var(--ink);font-size:14px}
+table{width:100%;border-collapse:collapse;margin:8px 0;font-size:14px}
+td{padding:7px 4px;border-top:1px solid var(--line);vertical-align:top}td:first-child{width:34%;white-space:nowrap}
+tr:first-child td{border-top:0}
+details{border-top:1px solid var(--line);padding:10px 0}details:first-of-type{border-top:0}
+summary{cursor:pointer;font-weight:600}summary:focus-visible{outline:3px solid var(--electric);outline-offset:2px}
+details p{color:var(--ink2);margin:6px 0 2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <img src="data:image/png;base64,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" alt="">
+  <div>
+    <h1>RUTprompter</h1>
+    <p class="lead">Суфлёр для macOS, который следует за вашим голосом. Установка занимает несколько минут.</p>
+    <div class="pills"><span class="pill">macOS 13+</span><span class="pill line">работает офлайн</span><span class="pill line">звук не покидает Mac</span></div>
+  </div>
+</header>
+<nav><a href="#install">Установка</a><a href="#first">Первый запуск</a><a href="#use">Как пользоваться</a><a href="#help">Если не получается</a><a href="#remove">Удаление</a></nav>
+
+<section id="install">
+  <h2><span class="n"><b>1</b></span>Установка</h2>
+  <ol>
+    <li>Дважды щёлкните <code>Установить.command</code> в папке RUTprompter.</li>
+    <li>Если macOS пишет, что файл нельзя открыть, нажмите на него правой кнопкой и выберите «Открыть», затем ещё раз «Открыть».</li>
+    <li>В первый раз Mac может предложить установить «инструменты командной строки». Нажмите «Установить» и подождите 5–15 минут, потом снова дважды щёлкните <code>Установить.command</code>.</li>
+    <li>Окно терминала само соберёт приложение и положит его в «Программы». В конце RUTprompter откроется.</li>
+  </ol>
+  <p class="note">Интернет нужен только чтобы скачать инструменты разработчика. Само приложение работает без сети.</p>
+</section>
+
+<section id="first">
+  <h2><span class="n"><b>2</b></span>Первый запуск</h2>
+  <ol>
+    <li>В режиме «Голос» нажмите «Старт». macOS спросит доступ к <b>микрофону</b> и к <b>распознаванию речи</b>. Нажмите «Разрешить» оба раза.</li>
+    <li>Для работы без интернета добавьте офлайн-диктовку: <b>Системные настройки → Клавиатура → Диктовка → Язык</b>, добавьте «Русский».</li>
+    <li>Без разрешений приложение не ломается: оно переходит на постоянную скорость прокрутки, которую можно менять кнопками − и +.</li>
+  </ol>
+  <p class="note">Голосовых команд в приложении нет. Голос нужен только чтобы понять, какое место сценария сейчас читают, поэтому разговор рядом ничего не остановит.</p>
+</section>
+
+<section id="use">
+  <h2><span class="n"><b>3</b></span>Как пользоваться</h2>
+  <ol>
+    <li>Вставьте текст в окно «Сценарий». Строка <code># Название</code> создаёт раздел, <code>[ремарка]</code> не читается вслух, <code>МАША:</code> заглавными задаёт говорящего.</li>
+    <li>Подключите монитор по HDMI. Текст откроется на нём на весь экран. Для стеклянной насадки включите зеркало на странице «Вывод».</li>
+    <li>Нажмите «Старт» и читайте. Справа вверху можно задать целевую длительность дубля.</li>
+    <li>«Стоп» завершает дубль. Страница «Дубли» покажет время и места, где темп проседал.</li>
+  </ol>
+  <table>
+    <tr><td><kbd>Пробел</kbd></td><td>старт и пауза</td></tr>
+    <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>строка назад и вперёд</td></tr>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>предыдущий и следующий раздел</td></tr>
+    <tr><td><kbd>+</kbd> <kbd>−</kbd></td><td>скорость в режиме «Темп»</td></tr>
+    <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>шрифт мельче и крупнее</td></tr>
+    <tr><td><kbd>M</kbd></td><td>зеркало второго экрана</td></tr>
+    <tr><td><kbd>Esc</kbd> <kbd>Home</kbd></td><td>пауза, в начало</td></tr>
+  </table>
+</section>
+
+<section id="help">
+  <h2><span class="n"><b>4</b></span>Если не получается</h2>
+  <details><summary>Текст не двигается за голосом</summary>
+    <p>Проверьте, что выбран режим «Голос» и в карточке слева внизу написано «Слушаю». Если там «Запасной режим», откройте её: причина указана на странице «Речь и микрофон» (чаще всего не выдан доступ или не добавлен язык диктовки).</p></details>
+  <details><summary>Разрешения не спросили или я нажал «Не разрешать»</summary>
+    <p>Системные настройки → Конфиденциальность и безопасность → Микрофон и Распознавание речи. Включите переключатель у RUTprompter и откройте приложение заново.</p></details>
+  <details><summary>Второй экран не показывается</summary>
+    <p>Подключите монитор и выберите «Вывод» в правом верхнем углу окна. Для проверки без монитора есть пункт «В отдельном окне».</p></details>
+  <details><summary>Сборка остановилась с ошибкой</summary>
+    <p>Скопируйте весь текст из окна терминала и пришлите разработчику. Чаще всего помогает завершить установку инструментов командной строки и запустить установщик ещё раз.</p></details>
+</section>
+
+<section id="remove">
+  <h2><span class="n"><b>5</b></span>Удаление</h2>
+  <p>Дважды щёлкните <code>Удалить.command</code>. Он удалит приложение, настройки, журналы и выданные разрешения. Сохранённый сценарий останется, пока вы сами не согласитесь его удалить.</p>
+</section>
+</div>
+</body>
+</html>
