@@ -38,6 +38,18 @@ struct PrompterColors: Codable, Equatable, Hashable, Identifiable {
     /// Маркер линии чтения.
     var marker: RGBAColor
 
+    /// Фирменная: тёмно-синий фон, голубые акценты (по умолчанию).
+    static let brandNavy = PrompterColors(
+        id: "brand-navy", name: "Фирменная тёмная",
+        text: RGBAColor(1, 1, 1), background: RGBAColor(0.027, 0.078, 0.169),
+        highlight: RGBAColor(0.498, 0.89, 1, 0.14), readText: RGBAColor(1, 1, 1, 0.34),
+        remark: RGBAColor(0.498, 0.89, 1), marker: RGBAColor(0.498, 0.89, 1))
+    /// Фирменная светлая: белый фон, синий 005CC9.
+    static let brandLight = PrompterColors(
+        id: "brand-light", name: "Фирменная светлая",
+        text: RGBAColor(0.043, 0.165, 0.361), background: RGBAColor(1, 1, 1),
+        highlight: RGBAColor(0, 0.361, 0.788, 0.09), readText: RGBAColor(0.043, 0.165, 0.361, 0.26),
+        remark: RGBAColor(0, 0.361, 0.788), marker: RGBAColor(0, 0.4, 1))
     static let whiteOnBlack = PrompterColors(
         id: "white-black", name: "Белый на чёрном",
         text: RGBAColor(1, 1, 1), background: RGBAColor(0, 0, 0),
@@ -58,7 +70,7 @@ struct PrompterColors: Codable, Equatable, Hashable, Identifiable {
         text: RGBAColor(0.35, 1, 0.5), background: RGBAColor(0, 0, 0),
         highlight: RGBAColor(0.35, 1, 0.5, 0.12), readText: RGBAColor(0.15, 0.45, 0.2),
         remark: RGBAColor(1, 0.8, 0.3), marker: RGBAColor(1, 0.3, 0.3))
-    static let presets = [whiteOnBlack, yellowOnBlack, blackOnWhite, greenOnBlack]
+    static let presets = [brandNavy, brandLight, whiteOnBlack, yellowOnBlack, blackOnWhite, greenOnBlack]
 }
 
 enum FontFamily: String, Codable, CaseIterable, Identifiable {
@@ -120,7 +132,7 @@ enum FontWeightOption: String, Codable, CaseIterable, Identifiable {
 
 /// Оформление текста суфлёра.
 struct PrompterTheme: Codable, Equatable {
-    var colors: PrompterColors = .whiteOnBlack
+    var colors: PrompterColors = .brandNavy
     var fontFamily: FontFamily = .system
     var fontWeight: FontWeightOption = .semibold
     /// Размер шрифта в пунктах на каждые 1000 пикселей ширины экрана —
@@ -180,7 +192,7 @@ struct PacingSettings: Codable, Equatable {
 
 /// Хранилище настроек в UserDefaults (JSON).
 final class SettingsStore: ObservableObject {
-    @Published var theme: PrompterTheme { didSet { save(theme, "theme") } }
+    @Published var theme: PrompterTheme { didSet { save(theme, "theme.v2") } }
     @Published var output: OutputSettings { didSet { save(output, "output") } }
     @Published var pacing: PacingSettings { didSet { save(pacing, "pacing") } }
     @Published var userSchemes: [PrompterColors] { didSet { save(userSchemes, "userSchemes") } }
@@ -192,7 +204,7 @@ final class SettingsStore: ObservableObject {
             guard let data = UserDefaults.standard.data(forKey: "rut." + key) else { return nil }
             return try? JSONDecoder().decode(T.self, from: data)
         }
-        theme = load("theme") ?? PrompterTheme()
+        theme = load("theme.v2") ?? PrompterTheme()
         output = load("output") ?? OutputSettings()
         pacing = load("pacing") ?? PacingSettings()
         userSchemes = load("userSchemes") ?? []

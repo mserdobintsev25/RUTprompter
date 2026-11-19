@@ -264,34 +264,46 @@ final class PrompterCanvasView: NSView {
 
     private func drawOverlays(_ colors: PrompterColors) {
         let fs = max(bounds.width / 1000 * 22, 12)
+        let electric = NSColor(srgbRed: 0, green: 0.4, blue: 1, alpha: 1)
+        let brand = NSColor(srgbRed: 0, green: 0.361, blue: 0.788, alpha: 1)
         if output.showProgress {
-            let h = max(fs * 0.18, 3)
+            let h = max(fs * 0.3, 4)
             colors.readText.nsColor.withAlphaComponent(0.35).setFill()
             CGRect(x: 0, y: 0, width: bounds.width, height: h).fill()
             colors.marker.nsColor.setFill()
             CGRect(x: 0, y: 0, width: bounds.width * CGFloat(stats.progress), height: h).fill()
         }
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: fs, weight: .semibold),
-            .foregroundColor: colors.text.nsColor.withAlphaComponent(0.75)
-        ]
+        // Время: фирменная плашка, как «19:30» из листа компонентов.
         if output.showTimer {
-            var text = "осталось " + TimeEstimator.format(stats.secondsRemaining)
-            if let d = stats.targetDelta { text += "   цель " + TimeEstimator.formatDelta(d) }
-            let s = NSAttributedString(string: text, attributes: attrs)
+            var text = TimeEstimator.format(stats.secondsRemaining)
+            if let d = stats.targetDelta, stats.elapsed > 1 { text += "  ·  " + TimeEstimator.formatDelta(d) }
+            let s = NSAttributedString(string: text, attributes: [
+                .font: NSFont.systemFont(ofSize: fs * 1.25, weight: .bold), .foregroundColor: NSColor.white])
             let size = s.size()
-            s.draw(at: CGPoint(x: bounds.width - size.width - fs, y: bounds.height - size.height - fs * 0.6))
+            let pad = fs * 0.9
+            let rect = CGRect(x: bounds.width - size.width - pad * 2 - fs * 1.2,
+                              y: bounds.height - size.height - pad * 0.9 - fs * 0.9,
+                              width: size.width + pad * 2, height: size.height + pad * 0.9)
+            electric.setFill()
+            NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2).fill()
+            s.draw(at: CGPoint(x: rect.minX + pad, y: rect.minY + pad * 0.45))
         }
+        // «Раздел заканчивается»: плашка с двойной обводкой, как «мероприятие».
         if output.showSectionAlert, stats.sectionEnding, let title = stats.sectionTitle,
            let left = stats.sectionSecondsRemaining {
-            let s = NSAttributedString(string: "«\(title)» — ещё \(TimeEstimator.format(left))", attributes: [
-                .font: NSFont.systemFont(ofSize: fs, weight: .bold), .foregroundColor: NSColor.black])
+            let s = NSAttributedString(string: "\(title) · ещё \(TimeEstimator.format(left))", attributes: [
+                .font: NSFont.systemFont(ofSize: fs * 1.05, weight: .bold), .foregroundColor: NSColor.white])
             let size = s.size()
-            let rect = CGRect(x: fs, y: bounds.height - size.height - fs * 1.2,
-                              width: size.width + fs, height: size.height + fs * 0.6)
-            NSColor.systemOrange.setFill()
-            NSBezierPath(roundedRect: rect, xRadius: fs * 0.4, yRadius: fs * 0.4).fill()
-            s.draw(at: CGPoint(x: rect.minX + fs / 2, y: rect.minY + fs * 0.3))
+            let outer = CGRect(x: fs * 1.2, y: bounds.height - size.height - fs * 2.5,
+                               width: size.width + fs * 2.2, height: size.height + fs * 1.1)
+            brand.setFill()
+            NSBezierPath(roundedRect: outer, xRadius: fs * 0.7, yRadius: fs * 0.7).fill()
+            let inner = outer.insetBy(dx: fs * 0.26, dy: fs * 0.26)
+            NSColor.white.setStroke()
+            let ring = NSBezierPath(roundedRect: inner, xRadius: fs * 0.5, yRadius: fs * 0.5)
+            ring.lineWidth = max(fs * 0.1, 1.5)
+            ring.stroke()
+            s.draw(at: CGPoint(x: outer.minX + fs * 1.1, y: outer.minY + fs * 0.55))
         }
     }
 

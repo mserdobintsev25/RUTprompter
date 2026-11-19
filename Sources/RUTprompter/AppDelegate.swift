@@ -25,8 +25,7 @@ final class ScriptModel: ObservableObject {
 /// Состояние интерфейса, которое меняют и меню, и SwiftUI.
 @MainActor
 final class UIState: ObservableObject {
-    @Published var showSettings = false
-    @Published var showTakes = false
+    @Published var page: AppPage = .script
     @Published var editUnlocked = false
 }
 
@@ -47,6 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         script = ScriptModel(engine: engine, text: text)
         display = DisplayManager(engine: engine, settings: settings)
 
+        applyAppearance()
         buildMenu()
         showOperatorWindow()
         display.start()
@@ -67,7 +67,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             backing: .buffered, defer: false)
         window.title = "RUTprompter"
         window.titlebarAppearsTransparent = true
-        window.minSize = NSSize(width: 900, height: 600)
+        window.titleVisibility = .hidden
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.minSize = NSSize(width: 980, height: 640)
         window.isReleasedWhenClosed = false
         window.setFrameAutosaveName("OperatorWindow")
         window.contentView = NSHostingView(rootView: OperatorView(
@@ -76,6 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             saveFile: { [weak self] in self?.saveScript(nil) }))
         if !window.setFrameUsingName("OperatorWindow") { window.center() }
         window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(nil)
         operatorWindow = window
     }
 
@@ -94,7 +98,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard event.window === operatorWindow || event.window?.contentView is PrompterCanvasView else { return false }
         if let tv = event.window?.firstResponder as? NSTextView, tv.isEditable { return false }
         if event.window?.firstResponder is NSTextField { return false }
-        if ui.showSettings || ui.showTakes { return false }
 
         switch event.keyCode {
         case 49: engine.togglePlay(); return true                  // пробел
@@ -173,6 +176,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         win.addItem(item("Вывод в отдельном окне (проверка)", #selector(outputWindowed(_:)), ""))
         win.addItem(item("Закрыть вывод", #selector(outputClose(_:)), ""))
         win.addItem(.separator())
+        let themeMenu = NSMenu(title: "Тема окна")
+        for (i, t) in ["Как в системе", "Светлая", "Тёмная"].enumerated() {
+            let mi = item(t, #selector(setAppearanceMode(_:)), "")
+            mi.tag = i
+            themeMenu.addItem(mi)
+        }
+        let themeItem = NSMenuItem(title: "Тема окна", action: nil, keyEquivalent: "")
+        themeItem.submenu = themeMenu
+        win.addItem(themeItem)
+        win.addItem(.separator())
         win.addItem(withTitle: "Свернуть", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         main.addItem(submenu(win, "Окно"))
         NSApp.windowsMenu = win
@@ -193,8 +206,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return i
     }
 
-    @objc func openSettings(_ sender: Any?) { ui.showSettings = true }
-    @objc func openTakes(_ sender: Any?) { ui.showTakes = true }
+    @objc func openSettings(_ sender: Any?) { ui.page = .appearance }
+    @objc func openTakes(_ sender: Any?) { ui.page = .takes }
     @objc func togglePlay(_ sender: Any?) { engine.togglePlay() }
     @objc func stopPlay(_ sender: Any?) { engine.stop() }
     @objc func rewind(_ sender: Any?) { engine.rewind() }
@@ -210,6 +223,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     @objc func outputWindowed(_ sender: Any?) { display.showWindowed() }
     @objc func outputClose(_ sender: Any?) { display.userClosed() }
+
+    /// 0 — как в системе, 1 — светлая, 2 — тёмная.
+    @objc func setAppearanceMode(_ sender: NSMenuItem) {
+        UserDefaults.standard.set(sender.tag, forKey: "rut.appearance")
+        applyAppearance()
+    }
+
+    private func applyAppearance() {
+        switch UserDefaults.standard.integer(forKey: "rut.appearance") {
+        case 1: NSApp.appearance = NSAppearance(named: .aqua)
+        case 2: NSApp.appearance = NSAppearance(named: .darkAqua)
+        default: NSApp.appearance = nil
+        }
+    }
 
     @objc func insertSample(_ sender: Any?) {
         if !script.text.isEmpty {
